@@ -1,0 +1,17 @@
+This is a mirror of http://www.vim.org/scripts/script.php?script_id=231
+
+There are many different arguments about tabs and stuff.  My current personal preference is a choice of tabbing that is independent of anybody&#039s viewing settings.  
+
+For the beginning of the line, this means we can use <tabs> which will expand whatever the reader wants it to.  Trying to line up tabs at the end of the line is a little trickier, and making a few assumptions, my preference is to use spaces there.
+
+This script allows you to use your normal tab settings for the beginning of the line, and have tabs expanded as spaces anywhere else.  This effectively distinguishes 'indent' from 'alignment'.  
+
+<tab>  Uses editor tab settings to insert a tab at the beginning of the line (before the first non-space character), and inserts spaces otherwise.
+<BS>  Uses editor tab settings to delete tabs or 'expanded' tabs ala smarttab
+
+ :RetabIndent[!] [tabstop]
+    This is similar to the :retab command, with the exception that it  affects all and only whitespace at the start of the line, changing it to suit your current (or new) tabstop and expandtab setting.  With the bang (!) at the end, the command also strips trailing  whitespace.
+
+CAUTION: After 1.1, this is no longer a filetype plugin by default ( set g:ctab_filetype_maps=1 to override)
+
+Using spaces for alignment of code under unmatched brackets is now supported.
