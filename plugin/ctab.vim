@@ -1,6 +1,6 @@
 " Intelligent Indent
 " Author: Michael Geddes <michaelrgeddes@optushome.com.au>
-" Version: 1.2
+" Version: 1.4
 "
 " Histroy:
 "   1.0: - Added RetabIndent command - similar to :retab, but doesn't cause
@@ -15,6 +15,7 @@
 "        - Make CTabAlignTo() public.
 "   1.3: - Fix removing trailing spaces with RetabIndent! which was causing
 "          initial indents to disappear.
+"   1.4: - Fixed Backspace tab being off by 1
 "
 
 " This is designed as a filetype plugin (originally a 'Buffoptions.vim' script).
@@ -61,7 +62,9 @@ else
   inoremap <BS> <c-r>=<SID>DoSmartDelete()<cr><BS>
 endif
 
+" Insert a smart tab.
 fun! s:InsertSmartTab()
+  " Clear the status
   echo ''
   if strpart(getline('.'),0,col('.')-1) =~'^\s*$' | return "\<Tab>" | endif
 
@@ -76,6 +79,7 @@ endfun
 " The <BS> is included at the end so that deleting back over line ends
 " works as expected.
 fun! s:DoSmartDelete()
+  " Clear the status
   echo ''
   let uptohere=strpart(getline('.'),0,col('.')-1)
   " If at the first part of the line, fall back on defaults... or if the
@@ -104,17 +108,13 @@ fun! s:DoSmartDelete()
   let ret=''
   let bs=bs-1
   if uptohere[uthlen+bs] !~ '\s'| return '' | endif
-  while bs>=0
+  while bs>=-1
     let bs=bs-1
     if uptohere[uthlen+bs] !~ '\s' | break | endif
     let ret=ret."\<BS>"
   endwhile
   return ret
 endfun
-
-"23412341234123412341234123412341234123412341234
-
-
 
 fun! s:Column(line)
   let c=0
@@ -180,8 +180,6 @@ fun! s:RetabIndent( bang, firstl, lastl, tab )
   endwhile
   if newtabstop != &tabstop | let &tabstop = newtabstop | endif
 endfun
-
-
 
 
 " Retab the indent of a file - ie only the first nonspace.
