@@ -18,6 +18,7 @@
 "          initial indents to disappear.
 "   1.4: - Fixed Backspace tab being off by 1
 "   2.0: - Add support for alignment whitespace for mismatched brackets to be spaces.
+"   2.1: - Fix = operator
 "
 
 " This is designed as a filetype plugin (originally a 'Buffoptions.vim' script).
@@ -194,7 +195,8 @@ if ! exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0
     let indaspace=inda % 50
     let indb=indent(a:line)
     if indatabs*&tabstop + indaspace == indb
-      exe 's/^\s*/'.repeat("\<Tab>",indatabs).repeat(' ',indaspace).'/'
+      let txtindent=repeat("\<Tab>",indatabs).repeat(' ',indaspace)
+      call setline(a:line, substitute(getline(a:line),'^\s*',txtindent,''))
     endif
     return ''
   endfun
@@ -257,9 +259,7 @@ fun! s:RetabIndent( bang, firstl, lastl, tab )
       let i=indent(l)
       let tabs= (&expandtab ? (0) : (i / newtabstop))
       let spaces=(&expandtab ? (i) : (i % newtabstop))
-      let txtindent=''
-      while tabs>0 | let txtindent=txtindent."\<tab>" | let tabs=tabs-1| endwhile
-      while spaces>0 | let txtindent=txtindent." " | let spaces=spaces-1| endwhile
+      let txtindent=repeat("\<tab>",tabs).repeat(' ',spaces)
       let store = 1
       let txt=substitute(txt,'^\s*',txtindent,'')
     endif
