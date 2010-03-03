@@ -1,7 +1,7 @@
 " Intelligent Indent
 " Author: Michael Geddes < vimmer at frog dot wheelycreek dot net >
-" Version: 2.0
-" Last Modified: 4 June 2009
+" Version: 2.3
+" Last Modified: 3 March 2010
 "
 " Histroy:
 "   1.0: - Added RetabIndent command - similar to :retab, but doesn't cause
@@ -19,7 +19,9 @@
 "   1.4: - Fixed Backspace tab being off by 1
 "   2.0: - Add support for alignment whitespace for mismatched brackets to be spaces.
 "   2.1: - Fix = operator
-"
+"   2.3: - Fix (Gene Smith) for error with non C files
+"        - Add option for filetype maps
+"        - Allow for lisp indentation
 
 " This is designed as a filetype plugin (originally a 'Buffoptions.vim' script).
 "
@@ -44,36 +46,57 @@
 "     'Tab' to the n'th column from the start of the indent.
 
 " g:ctab_filetype_maps
-"   set this to true for the maps to be <buffer> specific
+"   set this to true if script used as a filetype plugin
 " g:ctab_disable_checkalign
 "   set this to true to disable re-check of alignment
-
-
+" g:ctab_enable_default_filetype_maps
+"   disable the filetype specific maps
+" g:ctab_disable_tab_maps
+"   disable the (original) tab mappings
 
 if  exists('g:ctab_filetype_maps') && g:ctab_filetype_maps
-  " FileType:cpp,c,idl
-  "imap <buffer> <tab> <c-r>=<SID>InsertSmartTab()<cr>
-  "inoremap <buffer> <BS> <c-r>=<SID>DoSmartDelete()<cr><BS>
-  imap <expr> <buffer> <tab> <SID>InsertSmartTab()
-  inoremap <expr> <buffer> <BS> <SID>DoSmartDelete()."\<BS>"
-
-  " FileType:cpp,idl
-  if (&filetype =~ '^\(cpp\|idl\)$' )
-    imap <buffer> <m-;> <c-r>=CTabAlignTo(20)<cr>//
-    imap <buffer> <m-s-;> <c-r>=CTabAlignTo(30)<cr>//
-    imap <buffer> º <m-s-;>
-  endif
-
-  " FileType:c
-  if &filetype == 'c'
-    imap <buffer> <m-;> <c-r>=CTabAlignTo(10)<cr>/*  */<c-o>:start<bar>norm 2h<cr>
-  endif
+  let s:buff_map=' <buffer> '
 else
-  "imap <tab> <c-r>=<SID>InsertSmartTab()<cr>
-  " inoremap <BS> <c-r>=<SID>DoSmartDelete()<cr><BS>
-  imap <expr> <tab> <SID>InsertSmartTab()
-  inoremap <expr> <BS> <SID>DoSmartDelete()."\<BS>"
+  let s:buff_map=''
 endif
+
+if exists('g:ctab_enable_default_filetype_maps') && ctab_enable_default_filetype_maps
+  if s:buff_map != ''
+    if (&filetype =~ '^\(cpp\|idl\)$' )
+      imap <silent> <buffer> <expr> <m-;> CTabAlignTo(20).'//'
+      imap <silent> <buffer> <expr> <m-s-;> CTabAlignTo(30).'//'
+      imap <silent> <buffer> º <m-s-;>
+    elseif &filetype == 'c'
+      imap <expr> <silent> <buffer> <m-;> CTabAlignTo(10).'/*  */<left><left><left>'
+    endif
+  else
+    au FileType cpp,idl imap <expr> <silent> <buffer> <m-;> CTabAlignTo(20).'//'
+    au FileType cpp,idl imap <expr> <silent> <buffer> <m-:> CTabAlignTo(30).'//'
+    au FileType c imap <expr> <silent> <buffer> <m-;> CTabAlignTo(10).'/*  */<left><left>'
+  endif
+endif
+
+if !exists('g:ctab_disable_tab_maps') || ! g:ctab_disable_tab_maps
+  exe  'imap '.s:buff_map.'<silent> <expr> <tab> <SID>InsertSmartTab()'
+  exe  'inoremap '.s:buff_map.'<silent> <expr> <BS> <SID>DoSmartDelete()."\<BS>"'
+endif
+
+"exe 'imap '.s:buff_map.'<silent> <expr> <BS> <SID>KeepDelLine()."\<BS>"
+
+" MRG: TODO
+"exe 'imap '.s:buff_map.'<silent> <expr> <c-d> :call <SID>SmartDeleteTab()<CR>'
+"exe 'imap '.s:buff_map.'<silent> <c-t> <SID>SmartInsertTab()'
+" fun! s:SmartDeleteTab()
+"   let curcol=col('.')-&sw
+"   let origtxt=getline('.')
+"   let repl=matchstr(origtxt,'^\s\{-}\%'.(&sw+2)."v')
+"   if repl == '' then
+"     return "\<c-o>".':s/	*\zs	/'.repeat(' ',(&ts-&sw)).'/'."\<CR>\<c-o>".curcol.'|'
+"   else
+"     return "\<c-o>".':s/^\s\{-}\%'.(&sw+1)."v//\<CR>\<c-o>".curcol."|"
+"   end
+"     
+" endfun
 
 " Insert a smart tab.
 fun! s:InsertSmartTab()
@@ -167,7 +190,7 @@ if ! exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0
   " Check the alignment of line.
   " Used in the case where some alignment whitespace is required .. like for unmatched brackets.
   fun! s:CheckAlign(line)
-    if &expandtab
+    if &expandtab || !(&autoindent || &indentexpr || &cindent)
       return ''
     endif
 
@@ -184,8 +207,14 @@ if ! exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0
         endif
       elseif &cindent
         let inda=cindent(a:line)
+      elseif &lisp
+        let inda=lispindent(a:line)
+      elseif &autoindent
+        let inda=indent(a:line)
       elseif &smarttab
         return ''
+      else
+        let inda=0
       endif
     finally
       let &ts=tskeep
@@ -200,53 +229,59 @@ if ! exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0
     endif
     return ''
   endfun
-  if  exists('g:ctab_filetype_maps') && g:ctab_filetype_maps
-    inoremap <buffer> <CR> <CR><c-r>=<SID>CheckAlign(line('.'))."\<lt>END>"<CR>
-    nnoremap <buffer> o o<c-r>=<SID>CheckAlign(line('.'))."\<lt>END>"<CR>
-    nnoremap <buffer> O O<c-r>=<SID>CheckAlign(line('.'))."\<lt>END>"<CR>
-    map <buffer> <expr> = <SID>SetupEqual()
-  else
-    " Get the spaces at the end of the  indent correct.
-    " This is trickier than it should be, but this seems to work.
-    inoremap <CR> <CR><c-r>=<SID>CheckAlign(line('.'))."\<lt>END>"<CR>
-    nnoremap o o<c-r>=<SID>CheckAlign(line('.'))."\<lt>END>"<CR>
-    nnoremap O O<c-r>=<SID>CheckAlign(line('.'))."\<lt>END>"<CR>
+  fun! s:SID()
+    return matchstr(expand('<sfile>'), '<SNR>\zs\d\+\ze_SID$')
+  endfun
+  " Get the spaces at the end of the  indent correct.
+  " This is trickier than it should be, but this seems to work.
+  fun! s:CheckCR()
+    echo 'SID:'.s:SID()
+    if getline('.') =~ '^\s*$'
+      return "\<CR>"
+    else
+      return "\<CR>\<c-r>=<SNR>".s:SID().'_CheckAlign(line(''''.''''))'."\<END>\<CR>"
+    endif
+  endfun
 
-    " Ok.. now re-evaluate the = re-indented section
+  "exe 'inoremap '.s:buff_map.'<silent> <CR> <CR><c-r>=<SID>CheckAlign(line(''.''))."\<lt>END>"<CR>'
+  exe 'inoremap '.s:buff_map.'<silent> <expr> <CR> <SID>CheckCR()'
+  exe 'nnoremap '.s:buff_map.'<silent> o o<c-r>=<SID>CheckAlign(line(''.''))."\<lt>END>"<CR>'
+  exe 'nnoremap '.s:buff_map.'<silent> O O<c-r>=<SID>CheckAlign(line(''.''))."\<lt>END>"<CR>'
 
-    " The only way I can think to do this is to remap the =
-    " so that it calls the original, then checks all the indents.
-    map <expr> = <SID>SetupEqual()
-  endif
+  " Ok.. now re-evaluate the = re-indented section
+
+  " The only way I can think to do this is to remap the =
+  " so that it calls the original, then checks all the indents.
+  exe 'map '.s:buff_map.'<silent> <expr> = <SID>SetupEqual()'
   fun! s:SetupEqual()
     set operatorfunc=CtabRedoIndent
     " Call the operator func so we get the range
     return 'g@'
   endfun
 
+  fun! CtabRedoIndent(type,...)
+    set operatorfunc=
+    let ln=line("'[")
+    let lnto=line("']")
+    " Do the original equals
+    norm! '[=']
+
+    if ! &et
+      " Then check the alignment.
+      while ln <= lnto
+        silent call s:CheckAlign(ln)
+        let ln+=1
+      endwhile
+    endif
+  endfun
 endif
-
-fun! CtabRedoIndent(type,...)
-  set operatorfunc=
-  let ln=line("'[")
-  let lnto=line("']")
-  " Do the original equals
-  norm! '[=']
-
-  if ! &et
-    " Then check the alignment.
-    while ln <= lnto
-      call s:CheckAlign(ln)
-      let ln+=1
-    endwhile
-  endif
-endfun
 
 " Retab the indent of a file - ie only the first nonspace
 fun! s:RetabIndent( bang, firstl, lastl, tab )
   let checkspace=((!&expandtab)? "^\<tab>* ": "^ *\<tab>")
   let l = a:firstl
   let force= a:tab != '' && a:tab != 0 && (a:tab != &tabstop)
+  let checkalign = &expandtab || !(&autoindent || &indentexpr || &cindent) ! exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0
   let newtabstop = (force?(a:tab):(&tabstop))
   while l <= a:lastl
     let txt=getline(l)
@@ -263,7 +298,12 @@ fun! s:RetabIndent( bang, firstl, lastl, tab )
       let store = 1
       let txt=substitute(txt,'^\s*',txtindent,'')
     endif
-    if store | call setline(l, txt ) | endif
+    if store
+      call setline(l, txt )
+      if checkalign
+        call s:CheckAlign(l)
+      endif
+    endif
 
     let l=l+1
   endwhile
@@ -272,8 +312,9 @@ endfun
 
 
 " Retab the indent of a file - ie only the first nonspace.
-"   Optional argumet specified the value of the new tabstops
+"   Optional argument specified the value of the new tabstops
 "   Bang (!) causes trailing whitespace to be gobbled.
 com! -nargs=? -range=% -bang -bar RetabIndent call <SID>RetabIndent(<q-bang>,<line1>, <line2>, <q-args> )
+
 
 " vim: sts=2 sw=2 et
