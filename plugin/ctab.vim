@@ -22,6 +22,7 @@
 "   2.3: - Fix (Gene Smith) for error with non C files
 "        - Add option for filetype maps
 "        - Allow for lisp indentation
+"   2.4: - Fix bug in Retab
 
 " This is designed as a filetype plugin (originally a 'Buffoptions.vim' script).
 "
@@ -102,7 +103,14 @@ endif
 fun! s:InsertSmartTab()
   " Clear the status
   echo ''
-  if strpart(getline('.'),0,col('.')-1) =~'^\s*$' | return "\<Tab>" | endif
+  if strpart(getline('.'),0,col('.')-1) =~'^\s*$' 
+    if exists('b:ctab_hook') && b:ctab_hook != ''
+      exe 'return '.b:ctab_hook
+    elseif exists('g:ctab_hook') && g:ctab_hook != ''
+      exe 'return '.g:ctab_hook
+    endif
+    return "\<Tab>" 
+  endif
 
   let sts=exists("b:insidetabs")?(b:insidetabs):((&sts==0)?&sw:&sts)
   let sp=(virtcol('.') % sts)
@@ -281,7 +289,7 @@ fun! s:RetabIndent( bang, firstl, lastl, tab )
   let checkspace=((!&expandtab)? "^\<tab>* ": "^ *\<tab>")
   let l = a:firstl
   let force= a:tab != '' && a:tab != 0 && (a:tab != &tabstop)
-  let checkalign = &expandtab || !(&autoindent || &indentexpr || &cindent) ! exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0
+  let checkalign = ( &expandtab || !(&autoindent || &indentexpr || &cindent)) && (!exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0)
   let newtabstop = (force?(a:tab):(&tabstop))
   while l <= a:lastl
     let txt=getline(l)
