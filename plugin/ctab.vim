@@ -1,7 +1,7 @@
 " Intelligent Indent
 " Author: Michael Geddes < vimmer at frog dot wheelycreek dot net >
-" Version: 2.3
-" Last Modified: 3 March 2010
+" Version: 2.5
+" Last Modified: 31 October 2010
 "
 " Histroy:
 "   1.0: - Added RetabIndent command - similar to :retab, but doesn't cause
@@ -23,6 +23,7 @@
 "        - Add option for filetype maps
 "        - Allow for lisp indentation
 "   2.4: - Fix bug in Retab
+"   2.5: - Fix issue with <CR> not aligning
 
 " This is designed as a filetype plugin (originally a 'Buffoptions.vim' script).
 "
@@ -96,20 +97,20 @@ endif
 "   else
 "     return "\<c-o>".':s/^\s\{-}\%'.(&sw+1)."v//\<CR>\<c-o>".curcol."|"
 "   end
-"     
+"
 " endfun
 
 " Insert a smart tab.
 fun! s:InsertSmartTab()
   " Clear the status
   echo ''
-  if strpart(getline('.'),0,col('.')-1) =~'^\s*$' 
+  if strpart(getline('.'),0,col('.')-1) =~'^\s*$'
     if exists('b:ctab_hook') && b:ctab_hook != ''
       exe 'return '.b:ctab_hook
     elseif exists('g:ctab_hook') && g:ctab_hook != ''
       exe 'return '.g:ctab_hook
     endif
-    return "\<Tab>" 
+    return "\<Tab>"
   endif
 
   let sts=exists("b:insidetabs")?(b:insidetabs):((&sts==0)?&sw:&sts)
@@ -247,7 +248,7 @@ if ! exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0
     if getline('.') =~ '^\s*$'
       return "\<CR>"
     else
-      return "\<CR>\<c-r>=<SNR>".s:SID().'_CheckAlign(line(''''.''''))'."\<END>\<CR>"
+      return "\<CR>\<c-r>=<SNR>".s:SID().'_CheckAlign(line(''.''))'."\<CR>\<END>"
     endif
   endfun
 
