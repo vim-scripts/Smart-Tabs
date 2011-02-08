@@ -1,7 +1,7 @@
 " Intelligent Indent
 " Author: Michael Geddes < vimmer at frog dot wheelycreek dot net >
-" Version: 2.5
-" Last Modified: 31 October 2010
+" Version: 2.6
+" Last Modified: December 2010
 "
 " Histroy:
 "   1.0: - Added RetabIndent command - similar to :retab, but doesn't cause
@@ -24,6 +24,7 @@
 "        - Allow for lisp indentation
 "   2.4: - Fix bug in Retab
 "   2.5: - Fix issue with <CR> not aligning
+"   2.6: - Fix issue with alignment not disappearing.
 
 " This is designed as a filetype plugin (originally a 'Buffoptions.vim' script).
 "
@@ -119,6 +120,17 @@ fun! s:InsertSmartTab()
   return strpart("                  ",0,1+sts-sp)
 endfun
 
+fun! s:CheckLeaveLine(line)
+  if ('cpo' !~ 'I') && exists('b:ctab_lastalign') && (a:line == b:ctab_lastalign)
+    s/^\s*$//e
+  endif
+endfun
+
+" Check on blanks
+aug Ctab
+au! InsertLeave * call <SID>CheckLeaveLine(line('.'))
+aug END
+
 
 " Do a smart delete.
 " The <BS> is included at the end so that deleting back over line ends
@@ -206,6 +218,11 @@ if ! exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0
     let tskeep=&ts
     let swkeep=&sw
     try
+      if a:line == line('.')
+        let b:ctab_lastalign=a:line
+      else
+        unlet b:ctab_lastalign
+      endif
       set ts=50
       set sw=50
       if &indentexpr != ''
@@ -244,8 +261,11 @@ if ! exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0
   " Get the spaces at the end of the  indent correct.
   " This is trickier than it should be, but this seems to work.
   fun! s:CheckCR()
-    echo 'SID:'.s:SID()
+    " echo 'SID:'.s:SID()
     if getline('.') =~ '^\s*$'
+      if ('cpo' !~ 'I') && exists('b:ctab_lastalign') && (line('.') == b:ctab_lastalign)
+        return "^\<c-d>\<CR>"
+      endif
       return "\<CR>"
     else
       return "\<CR>\<c-r>=<SNR>".s:SID().'_CheckAlign(line(''.''))'."\<CR>\<END>"
