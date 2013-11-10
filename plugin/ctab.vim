@@ -156,8 +156,8 @@ fun! s:DoSmartDelete()
   let pos = strlen(uptohere) - sp
   let bs = " \<BS>"                 " Disable deleting move than one space by first <BS> in some cases (not sure why it happens)
   while uptohere[pos+sp-2] == ' ' && sp > 1 && pos+sp > 1
-	let bs=bs . "\<BS>"
-	let sp=sp - 1
+    let bs=bs . "\<BS>"
+    let sp=sp - 1
   endwhile
   return bs
 endfun
