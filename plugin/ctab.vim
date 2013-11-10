@@ -150,27 +150,16 @@ fun! s:DoSmartDelete()
   let sts=(exists("b:insidetabs")?(b:insidetabs):((&sts==0)?(&sw):(&sts)))
 
   let ovc=virtcol('.')              " Find where we are
-  let sp=(ovc % sts)                " How many virtual characters to delete
+  let sp=((ovc-1) % sts)            " How many virtual characters to delete
   if sp==0 | let sp=sts | endif     " At least delete a whole tabstop
-  let vc=ovc-sp                     " Work out the new virtual column
-  " Find how many characters we need to delete (using \%v to do virtual column
-  " matching, and making sure we don't pass an invalid value to vc)
-  let uthlen=strlen(uptohere)
-  let bs= uthlen-((vc<1)?0:(  match(uptohere,'\%'.(vc-1).'v')))
-  let uthlen=uthlen-bs
-  " echo 'ovc = '.ovc.' sp = '.sp.' vc = '.vc.' bs = '.bs.' uthlen='.uthlen
-  if bs <= 0 | return  '' | endif
 
-  " Delete the specifed number of whitespace characters up to the first non-whitespace
-  let ret=''
-  let bs=bs-1
-  if uptohere[uthlen+bs] !~ '\s'| return '' | endif
-  while bs>=-1
-    let bs=bs-1
-    if uptohere[uthlen+bs] !~ '\s' | break | endif
-    let ret=ret."\<BS>"
+  let pos = strlen(uptohere) - sp
+  let bs = " \<BS>"                 " Disable deleting move than one space by first <BS> in some cases (not sure why it happens)
+  while uptohere[pos+sp-2] == ' ' && sp > 1 && pos+sp > 1
+	let bs=bs . "\<BS>"
+	let sp=sp - 1
   endwhile
-  return ret
+  return bs
 endfun
 
 fun! s:Column(line)
