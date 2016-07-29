@@ -221,7 +221,9 @@ if ! exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0
       if a:line == line('.')
         let b:ctab_lastalign=a:line
       else
-        unlet b:ctab_lastalign
+        if exists('b:ctab_lastalign')
+          unlet b:ctab_lastalign
+        endif
       endif
       set ts=50
       set sw=50
@@ -268,7 +270,7 @@ if ! exists('g:ctab_disable_checkalign') || g:ctab_disable_checkalign==0
       endif
       return "\<CR>"
     else
-      return "\<CR>\<c-r>=<SNR>".s:SID().'_CheckAlign(line(''.''))'."\<CR>\<END>"
+      return "\<CR>\<c-r>=<SNR>".s:SID().'_CheckAlign(line(''.''))'."\<CR>"
     endif
   endfun
 
